@@ -346,48 +346,68 @@ const updateResourceLabel = async (req, res) => {
       res.status(400).json({ message: err.message });
     }
   };
-const addResourceToAll = async (req, res) => {
-    const { projectName, label, type } = req.body;
-    
+
+  const addResourceToAll = async (req, res) => {
     try {
-      // Find all projects with the same name
-      const projects = await Project.find({ name: projectName });
-      if (!projects || projects.length === 0) {
-        return res.status(404).json({ message: 'Projects not found' });
-      }
-  
-      // Generate random values based on type for each project
-      await Promise.all(projects.map(async (project) => {
-        let randomData;
-        switch (type.toLowerCase()) {
-          case 'integer':
-            randomData = faker.number.int({ min: 1, max: 100 });
-            break;
-          case 'string':
-            randomData = faker.lorem.word();
-            break;
-          case 'boolean':
-            randomData = faker.datatype.boolean();
-            break;
-          default:
-            randomData = faker.lorem.word();
+        const { projectName, label, type, value, nestedResource } = req.body;
+        
+        if (!projectName || !label || !type) {
+            return res.status(400).json({ message: 'Missing required fields' });
         }
-  
-        project.resources.push({
-          label,
-          value: randomData,
-        });
-  
-        await project.save();
-      }));
-  
-      // Fetch and return updated projects
-      const updatedProjects = await Project.find({ name: projectName });
-      res.status(200).json(updatedProjects);
+
+        // Find all projects with the same name
+        const projects = await Project.find({ name: projectName });
+        if (!projects || projects.length === 0) {
+            return res.status(404).json({ message: 'Projects not found' });
+        }
+
+        // Update each project
+        await Promise.all(projects.map(async (project) => {
+            let resourceValue;
+            
+            if (type === 'object' && value) {
+                // Use the provided structured object
+                resourceValue = value;
+                project.resources.push({
+                    label,
+                    value: resourceValue,
+                    nestedResource: resourceValue // Same object for both fields
+                });
+            } else {
+                // For non-object types, generate random values as before
+                switch (type.toLowerCase()) {
+                    case 'integer':
+                        resourceValue = faker.number.int({ min: 1, max: 100 });
+                        break;
+                    case 'string':
+                        resourceValue = getRandomStringByLabel(label);
+                        break;
+                    case 'boolean':
+                        resourceValue = faker.datatype.boolean();
+                        break;
+                    default:
+                        resourceValue = faker.lorem.word();
+                }
+                
+                project.resources.push({
+                    label,
+                    value: resourceValue,
+                    nestedResource: null
+                });
+            }
+
+            await project.save();
+        }));
+
+        // Fetch and return updated projects
+        const updatedProjects = await Project.find({ name: projectName });
+        res.status(200).json(updatedProjects);
     } catch (err) {
-      res.status(400).json({ message: err.message });
+        console.error('Error in addResourceToAll:', err);
+        res.status(400).json({ message: err.message });
     }
-  };
+};
+
 const deleteProject = async (req, res) => {
     const { projectName } = req.params;
     

@@ -7,7 +7,10 @@ export default defineConfig({
     host: '0.0.0.0',
     port: process.env.PORT || 5173,
     strictPort: true,
-    allowedHosts: ['https://mockapi-frontend.onrender.com/'], // Add your Render frontend URL here
+    cors: {
+      origin: '*', // Or set to 'https://mockapi-frontend.onrender.com' for specific origin
+      credentials: true
+    }
   },
   preview: {
     host: '0.0.0.0',

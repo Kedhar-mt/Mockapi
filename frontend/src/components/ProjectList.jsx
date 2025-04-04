@@ -138,21 +138,43 @@ const ProjectList = () => {
 
   const addResourceToAll = async () => {
     if (!resourceLabel.trim() || !resourceType) return;
+    
     try {
-      const payload = {
+      let payload = {
         projectName: currentProjectName,
         label: resourceLabel,
-        type: resourceType,
+        type: resourceType
       };
-      await axios.post(
+
+      if (resourceType === 'object' && objectName) {
+        // Create the structured object
+        const structuredObject = {
+          name: objectName,
+          ...Object.fromEntries(
+            objectFields
+              .filter(field => field.key && field.value)
+              .map(field => [field.key, field.value])
+          )
+        };
+
+        payload = {
+          ...payload,
+          value: structuredObject,
+          nestedResource: structuredObject
+        };
+      }
+
+      const response = await axios.post(
         "http://localhost:5000/api/projects/add-resource-to-all",
         payload
       );
-      fetchProjects();
-      setShowAddResourceToAllForm(false);
-      setResourceLabel("");
-      setResourceType("");
-      toast.success("Resource added to all entries successfully");
+
+      if (response.data) {
+        fetchProjects();
+        setShowAddResourceToAllForm(false);
+        resetResourceForm();
+        toast.success("Resource added to all entries successfully");
+      }
     } catch (error) {
       console.error("Error adding resource to all entries:", error);
       toast.error("Error adding resource to all entries");
@@ -729,46 +751,98 @@ const ProjectList = () => {
         </div>
       )}
 
-      {showAddResourceToAllForm && (
-        <div className="modal-overlay">
-          <div className="modal">
-            <h3>Add Resource to All Entries</h3>
-            <div className="modal-content">
-              <input
-                type="text"
-                placeholder="Label"
-                value={resourceLabel}
-                onChange={(e) => setResourceLabel(e.target.value)}
-              />
-              <select
-                value={resourceType}
-                onChange={(e) => setResourceType(e.target.value)}
-              >
-                <option value="">Select Data Type</option>
-                <option value="integer">Integer</option>
-                <option value="string">String</option>
-                <option value="boolean">Boolean</option>
-              </select>
-              <div className="modal-buttons">
+{showAddResourceToAllForm && (
+  <div className="modal-overlay">
+    <div className="modal">
+      <h3>Add Resource to All Entries</h3>
+      <div className="modal-content">
+        <input
+          type="text"
+          placeholder="Label"
+          value={resourceLabel}
+          onChange={(e) => setResourceLabel(e.target.value)}
+        />
+        <select
+          value={resourceType}
+          onChange={(e) => {
+            setResourceType(e.target.value);
+            setShowObjectFields(e.target.value === 'object');
+          }}
+        >
+          <option value="">Select Data Type</option>
+          <option value="integer">Integer</option>
+          <option value="string">String</option>
+          <option value="boolean">Boolean</option>
+          <option value="object">Object</option>
+        </select>
+        
+        {showObjectFields && (
+          <div className="space-y-4 mb-4">
+            <input
+              type="text"
+              placeholder="Object Name"
+              className="w-full p-2 border rounded"
+              value={objectName}
+              onChange={(e) => setObjectName(e.target.value)}
+            />
+            
+            {objectFields.map((field, index) => (
+              <div key={index} className="flex space-x-2">
+                <input
+                  type="text"
+                  placeholder="Key"
+                  className="flex-1 p-2 border rounded"
+                  value={field.key}
+                  onChange={(e) => handleFieldChange(index, 'key', e.target.value)}
+                />
+                <input
+                  type="text"
+                  placeholder="Value"
+                  className="flex-1 p-2 border rounded"
+                  value={field.value}
+                  onChange={(e) => handleFieldChange(index, 'value', e.target.value)}
+                />
                 <button
-                  className="cancel-btn"
-                  onClick={() => setShowAddResourceToAllForm(false)}
-                  title="Cancel adding a resource to all entries"
+                  onClick={() => handleRemoveField(index)}
+                  className="px-3 py-2 text-white bg-red-500 rounded hover:bg-red-600"
                 >
-                  Cancel
-                </button>
-                <button
-                  className="submit-btn"
-                  onClick={addResourceToAll}
-                  title="Submit the resource to all entries"
-                >
-                  Submit
+                  X
                 </button>
               </div>
-            </div>
+            ))}
+            
+            <button
+              onClick={handleAddField}
+              className="w-full p-2 text-white bg-blue-500 rounded hover:bg-blue-600"
+            >
+              Add Field
+            </button>
           </div>
+        )}
+        
+        <div className="modal-buttons">
+          <button
+            className="cancel-btn"
+            onClick={() => {
+              setShowAddResourceToAllForm(false);
+              resetResourceForm();
+            }}
+            title="Cancel adding a resource to all entries"
+          >
+            Cancel
+          </button>
+          <button
+            className="submit-btn"
+            onClick={addResourceToAll}
+            title="Submit the resource to all entries"
+          >
+            Submit
+          </button>
         </div>
-      )}
+      </div>
+    </div>
+  </div>
+)}
 
       {showEditForm && (
         <div className="modal-overlay">
